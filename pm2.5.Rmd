@@ -30,16 +30,13 @@ pm_importWorksheets <- function(filename) {
 }
 
 pm_death_list <- pm_importWorksheets(filename = "C:/Users/ASUS/Downloads/1.2-24各縣市肺炎死亡概況.xls")
-pm_death_list2 <- pm_importWorksheets(filename = "C:/Users/ASUS/Downloads/1.2-25各縣市慢性下呼吸道疾病死亡概況.xls")
-# pm_death_100 <- pm_death_list[[7]]
-# pm_death_99 <- pm_death_list[[8]]
-# pm_death_98 <- pm_death_list[[9]]
-# pm_death_97 <- pm_death_list[[10]]
-# pm_death_96 <- pm_death_list[[11]]
-# pm_death_95 <- pm_death_list[[12]]
-# pm_death_94 <- pm_death_list[[13]]
-# pm_death_93 <- pm_death_list[[14]]
-# pm_death_92 <- pm_death_list[[15]]
+pm_death_list2 <- pm_importWorksheets(filename = 
+                                        "C:/Users/ASUS/Downloads/1.2-25各縣市慢性下呼吸道疾病死亡概況.xls")
+pm_regionCode_list <- pm_importWorksheets(filename = 
+                                            "C:/Users/ASUS/Desktop/workPlace/Taiwan_Geocode_103_v2.xlsx")
+
+pm_regionCode_county_df <- pm_regionCode_list[[1]]
+
 ```
 
 ## tidy data
@@ -129,7 +126,7 @@ year 106 to 101
 # 
 # pm_list_106to101 <- list(pm_death_106, pm_death_105, pm_death_104, pm_death_103, pm_death_102, pm_death_101)
 for(i in 1:6){
-  pm_death_list[[i]] <- pm_death_list[[i]][c(-1:-5, -29), ]
+  pm_death_list[[i]] <- pm_death_list[[i]][c(-1:-6, -29), ]
   colnames(pm_death_list[[i]]) <- c("county", "deaths", "death rate", "standardized mortality ratio", 
                                     "M_deaths", "M_death rate", "M_standardized mortality ratio", 
                                     "F_deaths", "F_death rate", "F_standardized mortality ratio")
@@ -142,6 +139,9 @@ pm_death_104 <- pm_death_list[[3]]
 pm_death_103 <- pm_death_list[[4]]
 pm_death_102 <- pm_death_list[[5]]
 pm_death_101 <- pm_death_list[[6]]
+
+pm_death_102[7, 1] <- "桃園市"
+pm_death_101[7, 1] <- "桃園市"
 
 pm_death_106 <- cbind(pm_death_106, year = 2017)
 pm_death_105 <- cbind(pm_death_105, year = 2016)
@@ -162,7 +162,7 @@ year 106 to
 ```{r}
 
 for(i in 1:6){
-  pm_death_list2[[i]] <- pm_death_list2[[i]][c(-1:-3, -27), ]
+  pm_death_list2[[i]] <- pm_death_list2[[i]][c(-1:-4, -27), ]
   colnames(pm_death_list2[[i]]) <- c("county", "deaths", "death rate", "standardized mortality ratio", 
                                      "M_deaths", "M_death rate", "M_standardized mortality ratio", 
                                      "F_deaths", "F_death rate", "F_standardized mortality ratio")
@@ -175,12 +175,12 @@ pm_death2_103 <- pm_death_list2[[4]]
 pm_death2_102 <- pm_death_list2[[5]]
 pm_death2_101 <- pm_death_list2[[6]]
 
-pm_death2_106[8, 1] <- "桃園市"
-pm_death2_105[8, 1] <- "桃園市"
-pm_death2_104[8, 1] <- "桃園市"
-pm_death2_103[8, 1] <- "桃園市"
-pm_death2_102[8, 1] <- "桃園市"
-pm_death2_101[8, 1] <- "桃園市"
+pm_death2_106[7, 1] <- "桃園市"
+pm_death2_105[7, 1] <- "桃園市"
+pm_death2_104[7, 1] <- "桃園市"
+pm_death2_103[7, 1] <- "桃園市"
+pm_death2_102[7, 1] <- "桃園市"
+pm_death2_101[7, 1] <- "桃園市"
 
 pm_death2_106 <- cbind(pm_death2_106, year = 2017)
 pm_death2_105 <- cbind(pm_death2_105, year = 2016)
@@ -217,15 +217,35 @@ pm_death2_total <- rbind(pm_death2_101, pm_death2_102, pm_death2_103,
 # }
 ```
 
-write xlsx
+turn county into code
 ```{r}
-library("xlsx")
+for(i in 1:nrow(pm_death_total)){
+  for(j in 1:nrow(pm_regionCode_county_df)){
+    if(pm_death_total[i, 1] == pm_regionCode_county_df[j, 2]){
+      pm_death_total[i, 1] <- pm_regionCode_county_df[j, 3]
+    }
+  }
+}
 
-write.xlsx(pm_death_total, "pm_death_total.xlsx", sheetName = "deaths uhahahahaha =w=", 
-           col.names = T, row.names = F, append = F)
-
-write.xlsx(pm_death2_total, "pm_death2_total.xlsx", sheetName = "deaths uhahahahaha =w=", 
-           col.names = T, row.names = F, append = F)
+for(i in 1:nrow(pm_death2_total)){
+  for(j in 1:nrow(pm_regionCode_county_df)){
+    if(pm_death2_total[i, 1] == pm_regionCode_county_df[j, 2]){
+      pm_death2_total[i, 1] <- pm_regionCode_county_df[j, 3]
+    }
+  }
+}
+```
+ 
+write xlsx
+library xlsx is conflict with XLConnect
+```{r}
+# library("xlsx")
+# 
+# write.xlsx(pm_death_total, "pm_death_total.xlsx", sheetName = "deaths uhahahahaha =w=", 
+#            col.names = T, row.names = F, append = F)
+# 
+# write.xlsx(pm_death2_total, "pm_death2_total.xlsx", sheetName = "deaths uhahahahaha =w=", 
+#            col.names = T, row.names = F, append = F)
 ```
 
 view
@@ -233,14 +253,10 @@ view
 
 ```
 
-
-
-
-
-
-
-
-
+rm
+```{r}
+rm(pm_death_list, pm_death_list2, pm_death_101, pm_death_102, pm_death_103, pm_death_104, pm_death_105, pm_death_106, pm_death2_101, pm_death2_102, pm_death2_103, pm_death2_104, pm_death2_105, pm_death2_106, pm_regionCode_list, pm_regionCode_county_df)
+```
 
 
 
