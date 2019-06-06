@@ -143,6 +143,15 @@ pm_death_103 <- pm_death_list[[4]]
 pm_death_102 <- pm_death_list[[5]]
 pm_death_101 <- pm_death_list[[6]]
 
+pm_death_106 <- cbind(pm_death_106, year = 2017)
+pm_death_105 <- cbind(pm_death_105, year = 2016)
+pm_death_104 <- cbind(pm_death_104, year = 2015)
+pm_death_103 <- cbind(pm_death_103, year = 2014)
+pm_death_102 <- cbind(pm_death_102, year = 2013)
+pm_death_101 <- cbind(pm_death_101, year = 2012)
+
+pm_death_total <- rbind(pm_death_101, pm_death_102, pm_death_103, pm_death_104, pm_death_105, pm_death_106)
+
 # response_death_106 <- response_death_106[c(-1:-5, -29), ]
 # 
 # colnames(response_death_106) <- c("county", "deaths", "death rate", "standardized mortality ratio", "M_deaths", "M_death rate", "M_standardized mortality ratio", "F_deaths", "F_death rate", "F_standardized mortality ratio")
@@ -172,6 +181,16 @@ pm_death2_104[8, 1] <- "桃園市"
 pm_death2_103[8, 1] <- "桃園市"
 pm_death2_102[8, 1] <- "桃園市"
 pm_death2_101[8, 1] <- "桃園市"
+
+pm_death2_106 <- cbind(pm_death2_106, year = 2017)
+pm_death2_105 <- cbind(pm_death2_105, year = 2016)
+pm_death2_104 <- cbind(pm_death2_104, year = 2015)
+pm_death2_103 <- cbind(pm_death2_103, year = 2014)
+pm_death2_102 <- cbind(pm_death2_102, year = 2013)
+pm_death2_101 <- cbind(pm_death2_101, year = 2012)
+
+pm_death2_total <- rbind(pm_death2_101, pm_death2_102, pm_death2_103, 
+                         pm_death2_104, pm_death2_105, pm_death2_106)
 
 # for(i in 7:15){
 #  for(j in 1:nrow(pm_death_list[[i]])){
