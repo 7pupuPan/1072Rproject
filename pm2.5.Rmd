@@ -217,6 +217,17 @@ pm_death2_total <- rbind(pm_death2_101, pm_death2_102, pm_death2_103,
 # }
 ```
 
+write xlsx
+```{r}
+library("xlsx")
+
+write.xlsx(pm_death_total, "pm_death_total.xlsx", sheetName = "deaths uhahahahaha =w=", 
+           col.names = T, row.names = F, append = F)
+
+write.xlsx(pm_death2_total, "pm_death2_total.xlsx", sheetName = "deaths uhahahahaha =w=", 
+           col.names = T, row.names = F, append = F)
+```
+
 view
 ```{r}
 
