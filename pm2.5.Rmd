@@ -33,10 +33,9 @@ pm_death_list <- pm_importWorksheets(filename = "C:/Users/ASUS/Downloads/1.2-24�
 pm_death_list2 <- pm_importWorksheets(filename = 
                                         "C:/Users/ASUS/Downloads/1.2-25各縣市慢性下呼吸道疾病死亡概況.xls")
 pm_regionCode_list <- pm_importWorksheets(filename = 
-                                            "C:/Users/ASUS/Desktop/workPlace/Taiwan_Geocode_103_v2.xlsx")
+                                            "C:/Users/ASUS/Desktop/workPlace/Taiwan_code.xlsx")
 
-pm_regionCode_county_df <- pm_regionCode_list[[1]]
-
+pm_regionCode_county_df <- pm_regionCode_list[[2]]
 ```
 
 ## tidy data
@@ -217,20 +216,23 @@ pm_death2_total <- rbind(pm_death2_101, pm_death2_102, pm_death2_103,
 # }
 ```
 
-turn county into code
+add county code
 ```{r}
+pm_death_total <- cbind(pm_death_total, county_code = NA)
+pm_death2_total <- cbind(pm_death2_total, county_code = NA)
+
 for(i in 1:nrow(pm_death_total)){
   for(j in 1:nrow(pm_regionCode_county_df)){
-    if(pm_death_total[i, 1] == pm_regionCode_county_df[j, 2]){
-      pm_death_total[i, 1] <- pm_regionCode_county_df[j, 3]
+    if(pm_death_total[i, 1] == pm_regionCode_county_df[j, 1]){
+      pm_death_total[i, ncol(pm_death_total)] <- pm_regionCode_county_df[j, 2]
     }
   }
 }
 
 for(i in 1:nrow(pm_death2_total)){
   for(j in 1:nrow(pm_regionCode_county_df)){
-    if(pm_death2_total[i, 1] == pm_regionCode_county_df[j, 2]){
-      pm_death2_total[i, 1] <- pm_regionCode_county_df[j, 3]
+    if(pm_death2_total[i, 1] == pm_regionCode_county_df[j, 1]){
+      pm_death2_total[i, ncol(pm_death2_total)] <- pm_regionCode_county_df[j, 2]
     }
   }
 }
@@ -241,10 +243,10 @@ library xlsx is conflict with XLConnect
 ```{r}
 # library("xlsx")
 # 
-# write.xlsx(pm_death_total, "pm_death_total.xlsx", sheetName = "deaths uhahahahaha =w=", 
+# write.xlsx(pm_death_total, "pm_death_total.xlsx", sheetName = "deaths uhahahahaha =w=",
 #            col.names = T, row.names = F, append = F)
 # 
-# write.xlsx(pm_death2_total, "pm_death2_total.xlsx", sheetName = "deaths uhahahahaha =w=", 
+# write.xlsx(pm_death2_total, "pm_death2_total.xlsx", sheetName = "deaths uhahahahaha =w=",
 #            col.names = T, row.names = F, append = F)
 ```
 
@@ -255,7 +257,7 @@ view
 
 rm
 ```{r}
-rm(pm_death_list, pm_death_list2, pm_death_101, pm_death_102, pm_death_103, pm_death_104, pm_death_105, pm_death_106, pm_death2_101, pm_death2_102, pm_death2_103, pm_death2_104, pm_death2_105, pm_death2_106, pm_regionCode_list, pm_regionCode_county_df)
+rm(pm_death_list, pm_death_list2, pm_death_101, pm_death_102, pm_death_103, pm_death_104, pm_death_105, pm_death_106, pm_death2_101, pm_death2_102, pm_death2_103, pm_death2_104, pm_death2_105, pm_death2_106, pm_regionCode_list, pm_regionCode_county_df)
 ```
 
 
