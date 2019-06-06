@@ -1,0 +1,109 @@
+---
+title: "EPA_AQI"
+author: "Pan"
+date: "2019/6/1"
+output: html_document
+---
+```{r}
+if(!require("tidyverse")) install.packages("tidyverse")
+library(readr)
+library(tidyverse)
+library(tidyr)
+library(readxl)
+```
+
+
+排放量清冊 
+```{r}
+#不知為何變負值
+#有point,line,plane
+
+library(readxl)
+TEDS_point <- read_excel("C:/Users/user/Documents/GitHub/1072project/TEDS9.0.xlsx")
+
+head(TEDS9_0)
+
+TEDS_p_clear<-TEDS_point%>%
+  gather(year,result,-type,-county,-county_code)%>%
+  spread(key =  type, value =  result)%>%
+  mutate(year=as.numeric(year))%>%
+  arrange(county_code,year)
+TEDS_p_clear
+```
+
+```{r}
+
+#處理單月份電力度數
+
+
+path<-"C:/Users/user/Documents/GitHub/1072project/CountyElectric.xlsx"
+
+excel_sheets(path)
+
+sheets=c(excel_sheets(path))
+sheets[1]
+
+#summarize 怎麼不刪除col????
+
+#CE as CountyElectric
+CE1<-read_excel(path,sheet=sheets[1],col_names=c("code","distinct","type","number","contract","value"),skip=1)%>%
+  mutate(time=sheets[1])
+# %>%
+#   group_by(code)%>%
+#   summarise(unique(distinct),unique(time),kWh=max(value))
+  
+
+na.omit(CE1)
+
+distinct(CE1,code)
+
+```
+
+```{r}
+#處理各月份電力統計
+df <- data.frame()
+
+#12月會有每年的累計 必須手動刪除
+
+for(i in c(1:49)){
+  df<-rbind(df,read_excel(path,sheet=i,col_names=c("code","distinct","type","number","contract","value"),skip=1)%>%
+              na.omit()%>%
+              mutate(time=sheets[i]))
+              
+}
+df
+
+df%>%
+  group_by(code,distinct,time)%>%
+  summarise(kWh=max(value))
+  
+
+```
+
+
+
+```{r}
+#處理各年份電力統計
+
+
+#CE as CountyElectric
+CE_year<-read_excel("C:/Users/user/Documents/GitHub/1072project/CountyElectric_year.xlsx",
+              col_names=c("code","distinct","type","104","105","106","107"),
+              col_types = c("numeric", "text", "text","numeric", "numeric", "numeric","numeric"),
+              skip=1)
+ # mutate(time=sheets[1])
+# %>%
+#   group_by(code)%>%
+#   summarise(unique(distinct),unique(time),kWh=max(value))
+  
+view(CE_year)
+na.omit(CE)
+
+distinct(CE1,code)
+
+
+```
+
+
+
+
