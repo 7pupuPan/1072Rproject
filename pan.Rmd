@@ -10,6 +10,7 @@ library(readr)
 library(tidyverse)
 library(tidyr)
 library(readxl)
+library(xlsx)
 ```
 
 
@@ -25,7 +26,6 @@ head(Taiwan_code)
 
 排放量清冊 
 ```{r}
-#不知為何變負值
 #有point,line,plane
 
 library(readxl)
@@ -95,9 +95,18 @@ df
 CE_month<-df%>%
   group_by(distinct_code,distinct,time)%>%
   summarise(kWh=max(value))%>%
-  inner_join(Taiwan_code,by="distinct_code")
+  inner_join(Taiwan_code,by="distinct_code")%>%
+  select(-distinct.y)%>%
+  rename(distinct=distinct.x)%>%
+  mutate(year=substr(time, 1, 3),
+         month=substr(time,4,5))%>%
+  mutate(year=as.numeric(year)+1911)
+  
 CE_month  
 
+# 
+#  write.xlsx(as.data.frame(CE_month), "distinct_electric_month.xlsx",sheetName = "monthly",
+#             col.names = T, row.names = F, append = F)
 ```
 
 
@@ -121,6 +130,8 @@ CountyElectric_year <- read_excel("C:/Users/user/Documents/GitHub/1072Rproject/C
 
 head(CountyElectric_year)
 
+# write.xlsx(as.data.frame(CountyElectric_year), "distinct_electric_year.xlsx",sheetName = "yearly",
+#            col.names = T, row.names = F, append = F)
 
 ```
 

@@ -1,0 +1,66 @@
+---
+title: "SA_analysis"
+author: "Pan"
+date: "2019/6/7"
+output: html_document
+---
+```{r,include = FALSE}
+library(readr)
+library(tidyverse)
+library(tidyr)
+library(readxl)
+library(xlsx)
+```
+
+
+
+```{r}
+#import excel
+#CE year
+library(readxl)
+distinct_electric_year <- read_excel("GitHub/1072Rproject/clear_data/distinct_electric_year.xlsx", 
+    col_types = c("text", "text", "numeric", 
+        "numeric", "text", "text"))%>%
+  rename(distinct=distinct.x)%>%
+  mutate(year=year+1911)%>%
+  mutate(year=as.character(year))
+
+distinct_electric_year
+
+
+#AIR_PM
+
+pm10_pm25 <- read_excel("GitHub/1072Rproject/pm10_pm25.xlsx", 
+    col_types = c("skip", "text", "text", 
+        "numeric", "numeric", "numeric", 
+        "numeric", "numeric", "text", "text"),
+    col_names = c("site","year","month","PM2.5day","PM10day",
+    "PM2.5","PM10","county","distinct"),
+    skip=1)
+pm10_pm25
+
+pm_year<-pm10_pm25%>%
+  mutate(year=as.character(year))%>%
+  group_by(site,year,county,distinct)%>%
+  summarize(PM2.5day=mean(PM2.5day),
+            PM10day=mean(PM10day),
+            PM2.5=mean(PM2.5),
+            PM10=mean(PM10))
+pm_year
+
+pm_year%>%
+  inner_join(distinct_electric_year,by=c("year",'distinct'))
+
+
+```
+
+
+```{r}
+library(readxl)
+distinct_electric_month <- read_excel("C:/Users/user/Documents/GitHub/1072Rproject/clear_data/distinct_electric_month.xlsx", 
+    col_types = c("text", "text", "text", 
+        "numeric", "text", "text", "numeric", 
+        "text"))
+distinct_electric_month
+```
+
