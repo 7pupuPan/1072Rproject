@@ -20,60 +20,147 @@ library(xlsx)
 library(readxl)
 Taiwan_code <- read_excel("C:/Users/user/Documents/GitHub/1072Rproject/taiwan_code.xlsx",
                           col_types = c("text", "text", "text", "text"))
-head(Taiwan_code)
+Taiwan_code
 
 ```
 
 排放量清冊 
 ```{r}
+#clean TEDS
 #有point,line,plane
 
 library(readxl)
 TEDS_point <- read_excel("C:/Users/user/Documents/GitHub/1072Rproject/TEDS9.0.xlsx",
+                         sheet='point',
                          col_types = c("text", "text", "text", 
         "numeric", "numeric", "numeric", 
-        "numeric", "numeric", "numeric", 
-        "numeric", "numeric", "numeric", 
-        "numeric", "numeric", "numeric", 
-        "numeric", "numeric", "numeric", 
-        "numeric", "numeric", "numeric", 
-        "numeric", "numeric", "numeric", 
-        "numeric", "numeric", "numeric", 
-        "numeric", "numeric", "numeric", 
+        "numeric", "numeric", "numeric",
+        "numeric", "numeric", "numeric",
+        "numeric", "numeric", "numeric",
+        "numeric", "numeric", "numeric",
+        "numeric", "numeric", "numeric",
+        "numeric", "numeric", "numeric",
+        "numeric", "numeric", "numeric",
+        "numeric", "numeric", "numeric",
         "numeric")) 
+TEDS_point
 
 TEDS_p_clear<-TEDS_point%>%
   gather(year,result,-type,-county,-county_code)%>%
   spread(key =  type, value =  result)%>%
-  mutate(year=as.numeric(year))%>%
+  mutate(year=as.numeric(year)+1911)%>%
+  mutate(year=as.character(year))%>%
   arrange(county_code,year)
 view(TEDS_p_clear)
+
+#作圖 玩TED point
+TEDS_p_clear%>%
+  filter(county_code == c("1","17","2","21","31"))%>%
+  ggplot()+
+  geom_line(aes(x=year,           
+                   y=PM2.5,group=county,
+                   color=county))+
+    theme_bw()
+
+
+TEDS_plane <- read_excel("C:/Users/user/Documents/GitHub/1072Rproject/TEDS9.0.xlsx",
+                         sheet='plane',
+                         col_types = c("text", "text", "text", 
+        "numeric", "numeric", "numeric", 
+        "numeric", "numeric", "numeric",
+        "numeric", "numeric", "numeric",
+        "numeric", "numeric", "numeric",
+        "numeric", "numeric", "numeric",
+        "numeric", "numeric", "numeric",
+        "numeric", "numeric", "numeric",
+        "numeric", "numeric", "numeric",
+        "numeric", "numeric", "numeric",
+        "numeric")) 
+TEDS_plane
+
+TEDS_plane_clear<-TEDS_plane%>%
+  gather(year,result,-type,-county,-county_code)%>%
+  spread(key =  type, value =  result)%>%
+  mutate(year=as.numeric(year)+1911)%>%
+  mutate(year=as.character(year))%>%
+  arrange(county_code,year)
+TEDS_plane_clear
+
+
+TEDS_plane_clear%>%
+  na.omit()%>%
+  filter(county_code == c("1","17","2","21","31"))%>%
+  ggplot()+
+  geom_line(aes(x=year,           
+                   y=PM2.5,group=county,
+                   color=county))+
+    theme_bw()
+
 ```
 
+
 ```{r}
-
-#處理單月份電力度數
-
-
-path<-"C:/Users/user/Documents/GitHub/1072Rproject/CountyElectric.xlsx"
-
-excel_sheets(path)
-
-sheets=c(excel_sheets(path))
-sheets[1]
+#TEDS point source VS CE
 
 
+TEDp_ce<-distinct_electric_year%>%
+  group_by(year,County_code,County)%>%
+  summarise(kWh=sum(kWh))%>%
+  rename(county_code=County_code,
+         county=County)%>%
+  inner_join(TEDS_p_clear,by=c('year',"county_code"))
 
-#CE as CountyElectric
-CE1<-read_excel(path,sheet=sheets[1],col_names=c("distinct_code","distinct","type","number","contract","value"),skip=1)%>%
-  mutate(time=sheets[1])%>%
-  group_by(distinct_code,distinct,time)%>%
-  summarise(kWh=max(value))%>%
-  na.omit()
-CE1
+# %>%
+#   gather(pollutant,result,CO,NH3,PM10,NMHC,NOx,Pb,SOx,THC,TSP,-year,-county_code,-county.x,-kWh)%>%
+#   arrange(county_code)
+
+TEDp_ce
+
+ggplot(data=TEDp_ce) +                        
+    geom_point(aes(x=log(kWh),           
+                   y=log(PM2.5),
+                   color=county.x)) +
+  geom_smooth(aes(x=log(kWh),           
+                   y=log(PM2.5)),method = "lm")+
+    theme_bw()
+
+TEDp_ce
 ```
 
+
+
 ```{r}
+#TEDS plane source VS CE
+
+TEDplane_ce<-distinct_electric_year%>%
+  group_by(year,County_code,County)%>%
+  summarise(kWh=sum(kWh))%>%
+  rename(county_code=County_code,
+         county=County)%>%
+  inner_join(TEDS_plane_clear,by=c('year',"county_code"))
+
+# %>%
+#   gather(pollutant,result,CO,NH3,PM10,NMHC,NOx,Pb,SOx,THC,TSP,-year,-county_code,-county.x,-kWh)%>%
+#   arrange(county_code)
+
+TEDplane_ce
+
+ggplot(data=TEDplane_ce) +                        
+    geom_point(aes(x=log(kWh),           
+                   y=(PM2.5),
+                   color=county.x)) +
+  geom_smooth(aes(x=log(kWh),           
+                   y=(PM2.5)),method = "lm")+
+    theme_bw()
+
+TEDp_ce
+```
+
+
+
+
+
+```{r reval=FALSE, warning=FALSE, include=FALSE}
 #處理各月份電力統計
 path<-"C:/Users/user/Documents/GitHub/1072Rproject/CountyElectric.xlsx"
 excel_sheets(path)
@@ -81,32 +168,36 @@ excel_sheets(path)
 sheets=c(excel_sheets(path))
 df <- data.frame()
 
-#12月會有每年的累計 必須手動刪除
+ for(i in c(1:49)){df<-rbind(df,read_excel(path,
+                     sheet=i,
+                     col_types = c("text", "text", "text","skip",
+                                   "skip", "numeric","text"),
+                     col_names=c("distinct_code","distinct",
+                                 "type","value","time"),
+                     skip=1)%>%
+               na.omit())
+ }
+ view(df)
 
-for(i in c(1:49)){
-  df<-rbind(df,read_excel(path,sheet=i,col_names=c("distinct_code","distinct","type","number","contract","value"),skip=1)%>%
-              na.omit()%>%
-              mutate(time=sheets[i]))
-              
-}
-df
+
 
 
 CE_month<-df%>%
-  group_by(distinct_code,distinct,time)%>%
-  summarise(kWh=max(value))%>%
-  inner_join(Taiwan_code,by="distinct_code")%>%
-  select(-distinct.y)%>%
-  rename(distinct=distinct.x)%>%
+  mutate(type=substr(type, 1, 2))%>%
+  filter(type==23)%>%inner_join(Taiwan_code,by="distinct_code")%>%
+  rename(distinct=distinct.x,
+         county=County,
+         county_code=County_code)%>%
   mutate(year=substr(time, 1, 3),
          month=substr(time,4,5))%>%
-  mutate(year=as.numeric(year)+1911)
+  mutate(year=as.numeric(year)+1911)%>%
+  select(-distinct.y,-time)
   
 CE_month  
 
-# 
-#  write.xlsx(as.data.frame(CE_month), "distinct_electric_month.xlsx",sheetName = "monthly",
-#             col.names = T, row.names = F, append = F)
+  # 
+  # write.xlsx(as.data.frame(CE_month), "distinct_electric_month.xlsx",sheetName = "monthly",
+  #            col.names = T, row.names = F, append = F)
 ```
 
 
@@ -116,26 +207,55 @@ CE_month
 
 
 #CE as CountyElectric
-CountyElectric_year <- read_excel("C:/Users/user/Documents/GitHub/1072Rproject/CountyElectric_year.xlsx", 
+CE_year <- read_excel("C:/Users/user/Documents/GitHub/1072Rproject/CountyElectric_year.xlsx", 
     col_types = c("text", "text", "text", 
         "numeric", "numeric", "numeric", 
         "numeric"),
     col_names=c("distinct_code","distinct","type","104","105","106","107"),
     skip=1)%>%
-  gather(year,kW,-type,-distinct,-distinct_code)%>%
-  group_by(distinct_code,distinct,year)%>%
-  summarise(kWh=max(kW))%>%
+  gather(year,kWh,-type,-distinct,-distinct_code)%>%
+  mutate(type=substr(type, 1, 2))%>%
+  filter(type==23)%>%
   inner_join(Taiwan_code,by="distinct_code")%>%
-  select(-distinct.y)
+  select(-type,-distinct.y)%>%
+  rename(distinct=distinct.x,
+         county=County,
+         county_code=County_code)
 
-head(CountyElectric_year)
+CE_year
 
-# write.xlsx(as.data.frame(CountyElectric_year), "distinct_electric_year.xlsx",sheetName = "yearly",
-#            col.names = T, row.names = F, append = F)
+  # write.xlsx(as.data.frame(CE_year), "distinct_electric_year.xlsx",sheetName = "yearly",col.names = T, row.names = F, append = F)
 
 ```
 
 
 
 
+```{r}
+#TEDS VS AIR
+TEDS_p_clear
+pm_year
+
+TEDS_p_clear%>%
+  inner_join(pm_year,by=c('year','county_code'))%>%
+  group_by(county_code,year,county,PM2.5.x,PM10.x)%>%
+  summarise(PM2.5.y=mean(PM2.5.y,na.rm=T),
+            PM10.y=mean(PM10.y,na.rm=T))%>%
+  ggplot()+                      
+    geom_point(aes(x=(PM2.5.x),           
+                   y=PM2.5.y,
+                   color=county)) +
+  geom_smooth(aes(x=log(PM2.5.x),
+                  y=PM2.5.y))+
+    theme_bw()
+
+TEDp_ce
+
+```
+
+
+
+```{r}
+
+```
 

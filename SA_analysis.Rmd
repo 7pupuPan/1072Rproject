@@ -5,62 +5,450 @@ date: "2019/6/7"
 output: html_document
 ---
 ```{r,include = FALSE}
+require(ggplot2)
 library(readr)
 library(tidyverse)
 library(tidyr)
 library(readxl)
 library(xlsx)
+library(ggplot2)
 ```
 
-
-
-```{r}
-#import excel
-#CE year
-library(readxl)
-distinct_electric_year <- read_excel("GitHub/1072Rproject/clear_data/distinct_electric_year.xlsx", 
+```{r eval=FALSE, warning=FALSE, include=FALSE}
+distinct_electric_year <- read_excel("C:/Users/user/Documents/GitHub/1072Rproject/clear_data/distinct_electric_year.xlsx", 
     col_types = c("text", "text", "numeric", 
         "numeric", "text", "text"))%>%
-  rename(distinct=distinct.x)%>%
-  mutate(year=year+1911)%>%
-  mutate(year=as.character(year))
-
-distinct_electric_year
-
-
-#AIR_PM
-
-pm10_pm25 <- read_excel("GitHub/1072Rproject/pm10_pm25.xlsx", 
-    col_types = c("skip", "text", "text", 
-        "numeric", "numeric", "numeric", 
-        "numeric", "numeric", "text", "text"),
-    col_names = c("site","year","month","PM2.5day","PM10day",
-    "PM2.5","PM10","county","distinct"),
-    skip=1)
-pm10_pm25
-
-pm_year<-pm10_pm25%>%
-  mutate(year=as.character(year))%>%
-  group_by(site,year,county,distinct)%>%
-  summarize(PM2.5day=mean(PM2.5day),
-            PM10day=mean(PM10day),
-            PM2.5=mean(PM2.5),
-            PM10=mean(PM10))
-pm_year
-
-pm_year%>%
-  inner_join(distinct_electric_year,by=c("year",'distinct'))
-
-
+  mutate(year=year+1911)
 ```
+
+
 
 
 ```{r}
-library(readxl)
-distinct_electric_month <- read_excel("C:/Users/user/Documents/GitHub/1072Rproject/clear_data/distinct_electric_month.xlsx", 
-    col_types = c("text", "text", "text", 
-        "numeric", "text", "text", "numeric", 
-        "text"))
-distinct_electric_month
+#analysis CE year
+distinct_electric_year
+#五都 
+five_city <-c("1","17","2","21","31")
+
+
+#五都近年用電
+
+distinct_electric_year%>%
+  group_by(county_code,county,year)%>%
+  summarize(kWh=sum(kWh))%>%
+  filter(county_code %in% five_city)%>%
+  ggplot() +
+  geom_line(aes(x=year,y=kWh,
+                color=county))+
+   theme_bw()
+
+
 ```
 
+
+
+
+```{r eval=FALSE, warning=FALSE, include=FALSE}
+#跑很久
+#import data 
+
+distinct_electric_month <-
+  read_excel("C:/Users/user/Documents/GitHub/1072Rproject/clear_data/distinct_electric_month.xlsx",
+             col_types = c("text", "text", "skip", 
+        "numeric", "text", "text", "numeric", 
+        "numeric"))
+```
+
+
+
+
+#分析CE month
+```{r}
+
+#line 跑步出來
+
+(distinct_electric_month)
+
+distinct_electric_month%>%
+  mutate(month=as.factor(month))%>%
+  rename(kWh=value)%>%
+  group_by(county_code,county,month)%>%
+  summarize(kWh=sum(kWh))%>%
+  filter(county_code %in% five_city)%>%
+  ggplot() +
+  geom_point(aes(x=month,y=(kWh),
+                color=county))+
+   theme_bw()
+```
+
+
+#稍微整理PM資料
+
+```{r eval=FALSE, warning=FALSE, include=FALSE}
+pm_withcodes <- read_excel("C:/Users/user/Documents/GitHub/1072Rproject/pm_withcodes.xlsx", 
+     col_types = c("skip", "skip", "text", 
+         "text", "text", "numeric", "numeric", 
+         "numeric", "numeric", "text", "text", 
+         "text", "text"),
+     col_names=c("site","year","month","PM2.5day","PM10day",
+     "PM2.5","PM10","county","distinct","distinct_code",'county_code'),
+     skip=1)
+pm_withcodes
+
+distinct_electric_year
+#先整理出各縣市各區PM年平均
+pm_year<-pm_withcodes%>%
+  mutate(year=as.numeric(year))%>%
+  group_by(site,year,county_code,distinct_code)%>%
+  summarize(PM2.5day=mean(PM2.5day),
+            PM10day=mean(PM10day),
+            PM2.5=mean(PM2.5,na.rm=T),
+            PM10=mean(PM10,na.rm=T))
+pm_year
+#合併PM CE各區資料
+pm_ce_year<-pm_year%>%
+  inner_join(distinct_electric_year,
+             by=c("year",'distinct_code',"county_code"))%>%
+  arrange(distinct_code)%>%
+  group_by(year,county,county_code)%>%
+  summarize(PM2.5day=mean(PM2.5day),
+            PM10day=mean(PM10day),
+            PM2.5=mean(PM2.5,na.rm=T),
+            PM10=mean(PM10,na.rm=T),
+            kWh=mean(kWh))%>%
+  arrange(county_code)
+pm_ce_year
+```
+
+
+#PM VS CE year
+LEVEL:整年
+group: 縣市
+
+```{r}
+
+pm_ce_year%>%
+  ggplot() +
+  geom_point(aes(x=log(kWh),
+           y=PM2.5,
+           color=county)) +
+  geom_smooth(aes(x=log(kWh),           
+                   y=PM2.5),method = "lm") +
+  theme_bw()
+
+#只看五都
+pm_ce_year%>%
+  filter(county_code %in% five_city)%>%
+  ggplot() +
+  geom_point(aes(x=log(kWh),
+           y=PM2.5,
+           color=county)) +
+  geom_smooth(aes(x=log(kWh),           
+                   y=PM2.5),method = "lm") +
+  theme_bw()
+
+#  reg<-lm(formula = log(kWh) ~ PM2.5,data=pm_ce_year)
+# summary(reg)
+```
+
+
+
+```{r}
+#合併PM CE 月份 資料 
+
+pm_ce_month<-pm_withcodes%>%
+  mutate(year=as.numeric(year),
+         month=as.numeric(month))%>%
+  inner_join(distinct_electric_month,
+             by=c("year","month",'distinct_code',"county_code"))%>%
+  select(-county.y,-distinct.y)%>%
+  rename(distinct=distinct.x,county=county.x)%>%
+  arrange(county_code)
+pm_ce_month
+
+
+pm_ce_month%>%
+  mutate(month=as.factor(month))%>%
+  group_by(year,month,county_code,county)%>%
+  summarize(PM2.5day=mean(PM2.5day),
+            PM10day=mean(PM10day),
+            PM2.5=mean(PM2.5,na.rm=T),
+            PM10=mean(PM10,na.rm=T),
+            kWh=mean(value))%>%
+  arrange(county_code)%>%
+  ggplot() +
+  geom_point(aes(x=log(kWh),
+           y=PM2.5,color=county)) +
+  geom_smooth(aes(x=log(kWh),           
+                   y=PM2.5),method = "lm") +
+  theme_bw()
+
+
+pm_ce_month%>%
+  mutate(month=as.factor(month))%>%
+  group_by(year,month,county_code,county)%>%
+  summarize(PM2.5day=mean(PM2.5day),
+            PM10day=mean(PM10day),
+            PM2.5=mean(PM2.5,na.rm=T),
+            PM10=mean(PM10,na.rm=T),
+            kWh=mean(value))%>%
+  arrange(county_code)%>%
+  filter(county_code %in% five_city)%>%
+  ggplot() +
+  geom_point(aes(x=log(kWh),
+           y=PM2.5,color=county)) +
+  geom_smooth(aes(x=log(kWh),           
+                   y=PM2.5),method = "lm") +
+  theme_bw()
+
+
+#    reg<-lm(formula = log(kWh) ~ PM2.5,data=pm_ce_month)
+# summary(reg)
+
+```
+
+
+#看是否跟月份有關
+```{r}
+pm_ce_month%>%
+  mutate(month=as.factor(month))%>%
+  group_by(year,month,county_code,county)%>%
+  summarize(PM2.5day=mean(PM2.5day),
+            PM10day=mean(PM10day),
+            PM2.5=mean(PM2.5,na.rm=T),
+            PM10=mean(PM10,na.rm=T),
+            kWh=mean(value))%>%
+  arrange(county_code)%>%
+  ggplot() +
+  geom_point(aes(x=log(kWh),
+           y=PM2.5,color=month)) +
+  geom_smooth(aes(x=log(kWh),           
+                   y=PM2.5),method = "lm") +
+  theme_bw()
+
+#似乎有 看看月分布
+pm_ce_month%>%
+  mutate(month=as.factor(month))%>%
+  group_by(year,month,county_code,county)%>%
+  summarize(PM2.5day=mean(PM2.5day),
+            PM10day=mean(PM10day),
+            PM2.5=mean(PM2.5,na.rm=T),
+            PM10=mean(PM10,na.rm=T),
+            kWh=mean(value))%>%
+  arrange(county_code)%>%
+  filter(county_code%in%five_city)%>%
+  ggplot() +
+  geom_point(aes(x=log(kWh),
+           y=PM2.5,color=county)) +
+  geom_smooth(aes(x=log(kWh),           
+                   y=PM2.5),method = "lm") +
+  facet_wrap(~month)+
+  theme_bw()
+
+
+
+```
+
+
+排放量清冊 
+```{r eval=FALSE, message=FALSE, warning=FALSE, include=FALSE}
+#clean TEDS
+#有point,line,plane
+TEDS_point <- read_excel("C:/Users/user/Documents/GitHub/1072Rproject/TEDS9.0.xlsx",
+                         sheet='point',
+                         col_types = c("text", "text", "text", 
+        "numeric", "numeric", "numeric", 
+        "numeric", "numeric", "numeric",
+        "numeric", "numeric", "numeric",
+        "numeric", "numeric", "numeric",
+        "numeric", "numeric", "numeric",
+        "numeric", "numeric", "numeric",
+        "numeric", "numeric", "numeric",
+        "numeric", "numeric", "numeric",
+        "numeric", "numeric", "numeric",
+        "numeric")) 
+
+EDS_p_clear<-TEDS_point%>%
+  gather(year,result,-type,-county,-county_code)%>%
+  spread(key =  type, value =  result)%>%
+  mutate(year=as.numeric(year)+1911)%>%
+  mutate(year=as.factor(year))%>%
+  arrange(county_code,year)
+TEDS_p_clear
+
+TEDS_plane <- read_excel("C:/Users/user/Documents/GitHub/1072Rproject/TEDS9.0.xlsx",
+                         sheet='plane',
+                         col_types = c("text", "text", "text", 
+        "numeric", "numeric", "numeric", 
+        "numeric", "numeric", "numeric",
+        "numeric", "numeric", "numeric",
+        "numeric", "numeric", "numeric",
+        "numeric", "numeric", "numeric",
+        "numeric", "numeric", "numeric",
+        "numeric", "numeric", "numeric",
+        "numeric", "numeric", "numeric",
+        "numeric", "numeric", "numeric",
+        "numeric")) 
+TEDS_plane_clear<-TEDS_plane%>%
+  gather(year,result,-type,-county,-county_code)%>%
+  spread(key =  type, value =  result)%>%
+  mutate(year=as.numeric(year)+1911)%>%
+  mutate(year=as.factor(year))%>%
+  arrange(county_code,year)
+TEDS_plane_clear
+
+```
+
+```{r}
+
+#作圖 玩TED point
+TEDS_p_clear%>%
+  na.omit%>%
+  ggplot()+
+  geom_line(aes(x=year,           
+                   y=PM2.5,group=county,
+                   color=county))+
+    theme_bw()
+
+TEDS_p_clear%>%
+  filter(county_code %in% five_city)%>%
+  ggplot()+
+  geom_line(aes(x=year,           
+                   y=PM2.5,group=county,
+                   color=county))+
+    theme_bw()
+
+
+#不知為何無摺線
+TEDS_plane_clear%>%
+  filter(county_code %in% five_city)%>%
+  ggplot()+
+  geom_point(aes(x=year,           
+                   y=PM2.5,
+                   color=county))+
+    theme_bw()
+
+```
+
+
+
+
+```{r}
+#TEDS point source VS CE
+TED_p_ce<-distinct_electric_year%>%
+  mutate(year=as.factor(year))%>%
+  group_by(year,county_code,county)%>%
+  summarise(kWh=sum(kWh))%>%
+  inner_join(TEDS_p_clear,by=c('year',"county_code"))%>%
+  select(-county.y)%>%
+  rename(county=county.x)
+
+TED_p_ce
+TED_p_ce%>%
+  ggplot() +                        
+    geom_point(aes(x=log(kWh),           
+                   y=log(PM2.5),
+                   color=county)) +
+  geom_smooth(aes(x=log(kWh),           
+                   y=log(PM2.5)),method = "lm")+
+    theme_bw()
+
+ #檢查R squared
+summary(lm(formula = log(kWh) ~ log(PM2.5),data=TED_p_ce
+  ))
+
+
+```
+
+
+
+```{r}
+#TEDS plane source VS CE
+#點源
+TEDplane_ce<-distinct_electric_year%>%
+  mutate(year=as.factor(year))%>%
+  group_by(year,county_code,county)%>%
+  summarise(kWh=sum(kWh))%>%
+  inner_join(TEDS_plane_clear,by=c('year',"county_code"))%>%
+  select(-county.y)%>%
+  rename(county=county.x)
+
+
+TEDplane_ce%>%
+  filter(county_code %in% five_city)%>%
+  ggplot() +                        
+    geom_point(aes(x=log(kWh),           
+                   y=(PM2.5),
+                   color=county)) +
+  geom_smooth(aes(x=log(kWh),           
+                   y=(PM2.5)),method = "lm")+
+    theme_bw()
+
+ #檢查R squared
+summary(lm(formula = log(kWh) ~ PM2.5,data=TEDplane_ce%>%
+  filter(county_code %in% five_city)))
+
+
+#面源
+
+```
+
+#TEDS點源與PM關係
+
+```{r}
+#把PM資料整理成各縣市LEVEL
+
+TED_PM<-pm_year%>%
+  group_by(county_code,year)%>%
+  summarize(epaPM2.5day=mean(PM2.5day),
+            epaPM10day=mean(PM10day),
+            epaPM2.5=mean(PM2.5),
+            epaPM10=mean(PM10))%>%
+  mutate(year=as.factor(year))%>%
+  inner_join(TEDS_p_clear,by=c('year',"county_code"))
+    
+
+
+TED_PM%>%
+  filter(county_code %in% five_city)%>%
+  ggplot() +                        
+    geom_point(aes(x=PM2.5,           
+                   y=epaPM2.5,
+                   color=county)) +
+  geom_smooth(aes(x=PM2.5,           
+                   y=epaPM2.5),method = "lm")+
+  facet_wrap(~county)
+    theme_bw()
+
+ #檢查R squared
+summary(lm(formula = PM2.5 ~ epaPM2.5,data=TED_PM%>%
+  filter(county_code %in% five_city)))
+
+```
+#TEDS面源與PM關係
+```{r}
+#把PM資料整理成各縣市LEVEL
+
+TED_PM_plane<-pm_year%>%
+  group_by(county_code,year)%>%
+  summarize(epaPM2.5day=mean(PM2.5day),
+            epaPM10day=mean(PM10day),
+            epaPM2.5=mean(PM2.5),
+            epaPM10=mean(PM10))%>%
+  mutate(year=as.factor(year))%>%
+  inner_join(TEDS_plane_clear,by=c('year',"county_code"))
+
+TED_PM_plane%>%
+  filter(county_code %in% five_city)%>%
+  ggplot() +                        
+    geom_point(aes(x=PM2.5,           
+                   y=epaPM2.5,
+                   color=county)) +
+  geom_smooth(aes(x=PM2.5,           
+                   y=epaPM2.5),method = "lm")+theme_bw()
+
+ #檢查R squared
+summary(lm(formula = PM2.5 ~ epaPM2.5,data=TED_PM%>%
+  filter(county_code %in% five_city)))
+
+```
