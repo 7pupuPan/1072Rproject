@@ -28,19 +28,22 @@ distinct_electric_year <- read_excel("C:/Users/user/Documents/GitHub/1072Rprojec
 #analysis CE year
 distinct_electric_year
 #五都 
-five_city <-c("1","17","2","21","31")
+six_city <-c("1","31","32","17","21","2")
 
 
-#五都近年用電
+
+#六都近年用電
 
 distinct_electric_year%>%
   group_by(county_code,county,year)%>%
   summarize(kWh=sum(kWh))%>%
-  filter(county_code %in% five_city)%>%
-  ggplot() +
-  geom_line(aes(x=year,y=kWh,
-                color=county))+
-   theme_bw()
+  filter(county_code %in% six_city)%>%
+  ggplot(aes(x=year,y=kWh,
+                color=county)) +
+  geom_line()+
+  geom_point()+
+  ggtitle('六都近年用電量趨勢')+
+  theme_bw()
 
 
 ```
@@ -67,23 +70,26 @@ distinct_electric_month <-
 
 #line 跑步出來
 
-(distinct_electric_month)
+summary(distinct_electric_month)
 
 distinct_electric_month%>%
   mutate(month=as.factor(month))%>%
-  rename(kWh=value)%>%
+  group_by(county_code,county,year,month)%>%
+  summarize(kWh=sum(value))%>%
+  ungroup()%>%
   group_by(county_code,county,month)%>%
-  summarize(kWh=sum(kWh))%>%
-  filter(county_code %in% five_city)%>%
-  ggplot() +
-  geom_point(aes(x=month,y=(kWh),
-                color=county))+
-   theme_bw()
+  summarise(kWh=mean(kWh))%>%
+  filter(county_code %in% six_city)%>%
+  ggplot(aes(x=month,y=(kWh),
+                color=county,group = county)) +
+  geom_line()+
+  geom_point()+
+  ggtitle('六都2015-2019各月份用電量趨勢')+
+  theme_bw()
 ```
 
 
-#稍微整理PM資料
-
+#整理PM_CE各年資料
 ```{r eval=FALSE, warning=FALSE, include=FALSE}
 pm_withcodes <- read_excel("C:/Users/user/Documents/GitHub/1072Rproject/pm_withcodes.xlsx", 
      col_types = c("skip", "skip", "text", 
@@ -96,20 +102,29 @@ pm_withcodes <- read_excel("C:/Users/user/Documents/GitHub/1072Rproject/pm_withc
 pm_withcodes
 
 distinct_electric_year
-#先整理出各縣市各區PM年平均
+#先整理出各縣市各區PM年平均,總PMday
 pm_year<-pm_withcodes%>%
   mutate(year=as.numeric(year))%>%
   group_by(site,year,county_code,distinct_code)%>%
   summarize(PM2.5day=mean(PM2.5day),
             PM10day=mean(PM10day),
             PM2.5=mean(PM2.5,na.rm=T),
-            PM10=mean(PM10,na.rm=T))
+            PM10=mean(PM10,na.rm=T))%>%
+  arrange(county_code)
 pm_year
-#合併PM CE各區資料
+distinct_electric_year
+
+
 pm_ce_year<-pm_year%>%
   inner_join(distinct_electric_year,
              by=c("year",'distinct_code',"county_code"))%>%
-  arrange(distinct_code)%>%
+  arrange(distinct_code)
+
+
+ # write.xlsx(as.data.frame(pm_ce_year), "epa_electric_yearly.xlsx",sheetName = "yearly",col.names = T, row.names = F, append = F)
+
+#合併PM_CE各區資料(變成各縣市)
+pm_ce_year_county<-pm_ce_year%>%
   group_by(year,county,county_code)%>%
   summarize(PM2.5day=mean(PM2.5day),
             PM10day=mean(PM10day),
@@ -117,38 +132,74 @@ pm_ce_year<-pm_year%>%
             PM10=mean(PM10,na.rm=T),
             kWh=mean(kWh))%>%
   arrange(county_code)
-pm_ce_year
+pm_ce_year_county
+
+#write.xlsx(as.data.frame(pm_ce_year_county), "epa_electric_yearly_county.xlsx",sheetName = "yearly",col.names = T, row.names = F, append = F)
+
+```
+#整理PM_CE各月資料
+
+```{r}
+pm_ce_month<-pm_withcodes%>%
+  mutate(year=as.numeric(year),
+         month=as.numeric(month))%>%
+  inner_join(distinct_electric_month,
+             by=c("year","month",'distinct_code',"county_code"))%>%
+  select(-county.y,-distinct.y)%>%
+  rename(distinct=distinct.x,county=county.x,kWh=value)%>%
+  arrange(distinct_code,year,month)
+
+
+distinct_electric_month
+pm_ce_month
+
+#  write.xlsx(as.data.frame(pm_ce_month), "epa_electric_monthly.xlsx",sheetName = "monthly",col.names = T, row.names = F, append = F)
+
+#合併PM_CE各區資料(變成各縣市)
+pm_ce_month_county<-pm_ce_month%>%
+  group_by(year,month,county,county_code)%>%
+  summarize(PM2.5day=mean(PM2.5day),
+            PM10day=mean(PM10day),
+            PM2.5=mean(PM2.5,na.rm=T),
+            PM10=mean(PM10,na.rm=T),
+            kWh=mean(kWh))%>%arrange(county_code)
+
+pm_ce_month_county
+
+#  write.xlsx(as.data.frame(pm_ce_month_county), "epa_electric_monthly_county.xlsx",sheetName = "monthly",col.names = T, row.names = F, append = F)
 ```
 
 
 #PM VS CE year
 LEVEL:整年
-group: 縣市
+group:縣市平均
 
 ```{r}
 
-pm_ce_year%>%
+pm_ce_year_county%>%
   ggplot() +
   geom_point(aes(x=log(kWh),
            y=PM2.5,
            color=county)) +
   geom_smooth(aes(x=log(kWh),           
                    y=PM2.5),method = "lm") +
-  theme_bw()
+  theme_bw()+
+  ggtitle('各縣市年均用電量與測站PM2.5濃度關係')
+  
 
-#只看五都
-pm_ce_year%>%
-  filter(county_code %in% five_city)%>%
+
+pm_ce_year_county%>%
+filter(county_code %in% six_city)%>%
   ggplot() +
   geom_point(aes(x=log(kWh),
            y=PM2.5,
            color=county)) +
   geom_smooth(aes(x=log(kWh),           
                    y=PM2.5),method = "lm") +
-  theme_bw()
+  theme_bw()+
+  ggtitle('六都年均用電量與測站PM2.5濃度關係')
 
-#  reg<-lm(formula = log(kWh) ~ PM2.5,data=pm_ce_year)
-# summary(reg)
+#summary(lm(formula = log(kWh) ~ PM2.5,data=pm_ce_year))
 ```
 
 
@@ -156,50 +207,26 @@ pm_ce_year%>%
 ```{r}
 #合併PM CE 月份 資料 
 
-pm_ce_month<-pm_withcodes%>%
-  mutate(year=as.numeric(year),
-         month=as.numeric(month))%>%
-  inner_join(distinct_electric_month,
-             by=c("year","month",'distinct_code',"county_code"))%>%
-  select(-county.y,-distinct.y)%>%
-  rename(distinct=distinct.x,county=county.x)%>%
-  arrange(county_code)
-pm_ce_month
 
 
 pm_ce_month%>%
-  mutate(month=as.factor(month))%>%
-  group_by(year,month,county_code,county)%>%
-  summarize(PM2.5day=mean(PM2.5day),
-            PM10day=mean(PM10day),
-            PM2.5=mean(PM2.5,na.rm=T),
-            PM10=mean(PM10,na.rm=T),
-            kWh=mean(value))%>%
-  arrange(county_code)%>%
   ggplot() +
   geom_point(aes(x=log(kWh),
            y=PM2.5,color=county)) +
   geom_smooth(aes(x=log(kWh),           
                    y=PM2.5),method = "lm") +
-  theme_bw()
+  theme_bw()+
+  ggtitle('各區月均用電量與測站PM2.5濃度關係')
 
-
-pm_ce_month%>%
-  mutate(month=as.factor(month))%>%
-  group_by(year,month,county_code,county)%>%
-  summarize(PM2.5day=mean(PM2.5day),
-            PM10day=mean(PM10day),
-            PM2.5=mean(PM2.5,na.rm=T),
-            PM10=mean(PM10,na.rm=T),
-            kWh=mean(value))%>%
-  arrange(county_code)%>%
-  filter(county_code %in% five_city)%>%
+pm_ce_month_county%>%
   ggplot() +
   geom_point(aes(x=log(kWh),
            y=PM2.5,color=county)) +
   geom_smooth(aes(x=log(kWh),           
                    y=PM2.5),method = "lm") +
-  theme_bw()
+  theme_bw()+
+  ggtitle('各縣市月均用電量與測站PM2.5濃度關係')
+
 
 
 #    reg<-lm(formula = log(kWh) ~ PM2.5,data=pm_ce_month)
