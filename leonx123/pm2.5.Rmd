@@ -14,6 +14,12 @@ knitr::opts_chunk$set(echo = TRUE)
 Sys.setlocale("LC_CTYPE", locale="Chinese")
 ```
 
+read csv
+```{r}
+library(readr)
+pm_pmdata_df <- as.data.frame(read_csv("C:/Users/ASUS/Desktop/workPlace/pm_withcodes.csv"))
+```
+
 function: read multi worksheet from xlsx
 ```{r}
 library(XLConnect)
@@ -45,6 +51,18 @@ pm_population <-
 ```
 
 ## tidy data
+# pmdata
+remove unuseful col
+```{r}
+pm_pmdata_df <- pm_pmdata_df[, c(4:10, 13)]
+```
+
+change colnames
+```{r}
+colnames(pm_pmdata_df) <- c("year", "month", "days_pm2.5", "days_pm10.", "average_pm2.5", "average_pm10.", 
+                            "county", "county_code")
+```
+
 #pm_death_list
 year 106 to 101
 ```{r}
@@ -186,16 +204,82 @@ for(i in 1:8){
 }
 ```
 
+put "嘉義縣"(county_code == 40) into "嘉義市"(county_code == 22)
+make "嘉義"(code = 22)
+```{r}
+pm_death_total[c(130, 108, 86, 64, 42, 20), c(2:4, 7:9)] <- 
+  pm_death_total[c(130, 108, 86, 64, 42, 20), c(2:4, 7:9)] + 
+  pm_death_total[c(123, 101, 79, 57, 35, 13), c(2:4, 7:9)]
+
+pm_death2_total[c(130, 108, 86, 64, 42, 20), c(2:4, 7:9)] <- 
+  pm_death2_total[c(130, 108, 86, 64, 42, 20), c(2:4, 7:9)] + 
+  pm_death2_total[c(123, 101, 79, 57, 35, 13), c(2:4, 7:9)]
+
+pm_death_total[c(20, 42, 64, 86, 108, 130), 1] <- 
+  pm_death2_total[c(20, 42, 64, 86, 108, 130), 1] <- rep("嘉義", 6)
+
+pm_death_total <- pm_death_total[c(-13, -35, -57, -79, -101, -123), ]
+pm_death2_total <- pm_death2_total[c(-13, -35, -57, -79, -101, -123), ]
+```
+
 add col: ratio
 ```{r}
 library(magrittr)
 library(dplyr)
 
-pm_death_total <- pm_death_total %>% 
-  mutate(ratio = deaths / population, M_ratio = M_deaths / M_population, F_ratio = F_deaths / F_population)
+pm_death_total <- pm_death_total %>%
+  mutate(ratio_per_100000 = deaths*100000 / population, M_ratio_per_100000 = M_deaths*100000 / M_population,
+         F_ratio_per_100000 = F_deaths*100000 / F_population)
 
-pm_death2_total <- pm_death2_total %>% 
-  mutate(ratio = deaths / population, M_ratio = M_deaths / M_population, F_ratio = F_deaths / F_population)
+pm_death2_total <- pm_death2_total %>%
+  mutate(ratio_per_100000 = deaths*100000 / population, M_ratio_per_100000 = M_deaths*100000 / M_population,
+         F_ratio_per_100000 = F_deaths*100000 / F_population)
+```
+
+combine dataframes: pmdata + death, pmdata + death2
+```{r}
+library(dplyr)
+
+pm_death_total <- cbind(pm_death_total, average_pm2.5 = NA, average_pm10. = NA,
+                        average_days_pm2.5 = NA, average_days_pm10. = NA)
+for(i in 1:nrow(pm_death_total)){
+  pm_death_total[i, 13] <- (mean(unlist(filter(pm_pmdata_df, county_code == pm_death_total$county_code[i],
+                                               year == pm_death_total$year[i])[5]), na.rm = T))
+  pm_death_total[i, 14] <- (mean(unlist(filter(pm_pmdata_df, county_code == pm_death_total$county_code[i],
+                                               year == pm_death_total$year[i])[6]), na.rm = T))
+  pm_death_total[i, 15] <- (mean(unlist(filter(pm_pmdata_df, county_code == pm_death_total$county_code[i],
+                                               year == pm_death_total$year[i])[3]), na.rm = T))
+  pm_death_total[i, 16] <- (mean(unlist(filter(pm_pmdata_df, county_code == pm_death_total$county_code[i],
+                                               year == pm_death_total$year[i])[4]), na.rm = T))
+}
+
+pm_death2_total <- cbind(pm_death2_total, average_pm2.5 = NA, average_pm10. = NA,
+                         average_days_pm2.5 = NA, average_days_pm10. = NA)
+for(i in 1:nrow(pm_death2_total)){
+  pm_death2_total[i, 13] <- mean(unlist(filter(pm_pmdata_df, county_code == pm_death2_total$county_code[i],
+                                                year == pm_death2_total$year[i])[5]), na.rm = T)
+  pm_death2_total[i, 14] <- mean(unlist(filter(pm_pmdata_df, county_code == pm_death2_total$county_code[i],
+                                                year == pm_death2_total$year[i])[6]), na.rm = T)
+  pm_death2_total[i, 15] <- mean(unlist(filter(pm_pmdata_df, county_code == pm_death2_total$county_code[i],
+                                                year == pm_death2_total$year[i])[3]), na.rm = T)
+  pm_death2_total[i, 16] <- mean(unlist(filter(pm_pmdata_df, county_code == pm_death2_total$county_code[i],
+                                                year == pm_death2_total$year[i])[4]), na.rm = T)
+}
+```
+
+filter death, death2 df. take 6 counties
+```{r}
+library(magrittr)
+
+pm_filtered_death_6_cities <- filter(pm_death_total, 
+                                     county_code == 31 | county_code == 1 | county_code == 17 | 
+                                       county_code == 21 | county_code == 2 | county_code == 32)
+
+pm_filtered_death2_6_cities <- filter(pm_death2_total, 
+                                      county_code == 31 | county_code == 1 | county_code == 17 | 
+                                        county_code == 21 | county_code == 2 | county_code == 32)
+
+pm_order_6_cities <- c("新北市", "臺北市", "桃園市", "臺中市", "臺南市", "高雄市")
 ```
 
 write xlsx
@@ -210,14 +294,382 @@ warning: library xlsx is conflict with library XLConnect
 #            col.names = T, row.names = F, append = F)
 ```
 
-view
+## plotting
+# pm_death_total
+population to average pm 2.5
 ```{r}
+library(ggplot2)
 
+ggplot(pm_death_total, aes(x = average_pm2.5, y = population, col = factor(year))) +
+  geom_point() +
+  scale_y_log10() +
+  xlim(0, 40)
+# ggsave("population_pm2.5.png")
+
+ggplot(pm_death_total, aes(x = average_pm10., y = population, col = factor(year))) +
+  geom_point() +
+  scale_y_log10() +
+  xlim(0, 80)
+# ggsave("population_pm10.png")
+
+ggplot(pm_death_total, aes(x = average_pm2.5, y = population, col = county, size = year)) +
+  geom_point(alpha = .4) +
+  scale_y_log10() +
+  xlim(0, 40)
+
+ggplot(filter(pm_death_total, year == 2012), aes(x = average_pm2.5, y = population, col = county)) +
+  geom_point() +
+  scale_y_log10() +
+  xlim(0, 40)
+
+ggplot(filter(pm_death_total, year == 2013), aes(x = average_pm2.5, y = population, col = county)) +
+  geom_point() +
+  scale_y_log10() +
+  xlim(0, 40)
+
+ggplot(filter(pm_death_total, year == 2014), aes(x = average_pm2.5, y = population, col = county)) +
+  geom_point() +
+  scale_y_log10() +
+  xlim(0, 40)
+
+ggplot(filter(pm_death_total, year == 2015), aes(x = average_pm2.5, y = population, col = county)) +
+  geom_point() +
+  scale_y_log10() +
+  xlim(0, 40)
+
+ggplot(filter(pm_death_total, year == 2016), aes(x = average_pm2.5, y = population, col = county)) +
+  geom_point() +
+  scale_y_log10() +
+  xlim(0, 40)
+
+ggplot(filter(pm_death_total, year == 2017), aes(x = average_pm2.5, y = population, col = county)) +
+  geom_point() +
+  scale_y_log10() +
+  xlim(0, 40)
+```
+
+pm_2.5, pm_10. to death ratio
+```{r}
+library(ggplot2)
+
+ggplot(pm_death_total, aes(x = average_pm2.5, y = ratio_per_100000)) +
+  geom_point(aes(col = county)) + 
+  geom_smooth(method = "lm")
+
+ggplot(pm_death2_total, aes(x = average_pm2.5, y = ratio_per_100000)) +
+  geom_point(aes(col = county)) + 
+  geom_smooth(method = "lm")
+
+ggplot(pm_death_total, aes(x = average_pm10., y = ratio_per_100000)) +
+  geom_point(aes(col = county)) + 
+  geom_smooth(method = "lm")
+
+ggplot(pm_death2_total, aes(x = average_pm10., y = ratio_per_100000)) +
+  geom_point(aes(col = county)) + 
+  geom_smooth(method = "lm")
+
+ggplot(filter(pm_death_total, county_code == 31 | county_code == 1 | county_code == 17 | 
+                county_code == 21 | county_code == 2 | county_code == 32), 
+       aes(x = average_pm2.5, y = ratio_per_100000)) +
+  geom_point(aes(col = county)) + 
+  geom_smooth(method = "lm")
+```
+
+pm_10. to death ratio (filtered) (both data)
+```{r}
+pm_lm  <- lm(ratio_per_100000 ~ average_pm10., data = pm_filtered_death_6_cities)
+ggplot(pm_filtered_death_6_cities, aes(x = average_pm10., y = ratio_per_100000)) + 
+  geom_point(aes(col = factor(county, levels = pm_order_6_cities))) + 
+  geom_smooth(method = "lm") + 
+  annotate("text", x = 60, y = 2.5, label = paste("r^2 =", summary(pm_lm)$r.squared)) + 
+  ggtitle("六個直轄市當中\npm10.年平均濃度與所有人口肺炎死亡率關係") + 
+  scale_x_continuous(name = "pm10.年平均濃度 (mg/cm^3)", limits = c(0, 80)) + 
+  scale_y_continuous(name = "所有人口肺炎死亡率 (人/每10萬人)", limits = c(0, 80)) + 
+  scale_color_discrete(name = "直轄市")
+# ggsave("pm10_ratio_all_death1.png")
+
+pm_lm  <- lm(M_ratio_per_100000 ~ average_pm10., data = pm_filtered_death_6_cities)
+ggplot(pm_filtered_death_6_cities, aes(x = average_pm10., y = M_ratio_per_100000)) + 
+  geom_point(aes(col = factor(county, levels = pm_order_6_cities))) + 
+  geom_smooth(method = "lm") + 
+  annotate("text", x = 60, y = 2.5, label = paste("r^2 =", summary(pm_lm)$r.squared)) + 
+  ggtitle("六個直轄市當中\npm10.年平均濃度與男性人口肺炎死亡率關係") + 
+  scale_x_continuous(name = "pm10.年平均濃度 (mg/cm^3)", limits = c(0, 80)) + 
+  scale_y_continuous(name = "男性人口肺炎死亡率 (人/每10萬人)", limits = c(0, 80)) + 
+  scale_color_discrete(name = "直轄市")
+# ggsave("pm10_ratio_m_death1.png")
+
+pm_lm  <- lm(F_ratio_per_100000 ~ average_pm10., data = pm_filtered_death_6_cities)
+ggplot(pm_filtered_death_6_cities, aes(x = average_pm10., y = F_ratio_per_100000)) + 
+  geom_point(aes(col = factor(county, levels = pm_order_6_cities))) + 
+  geom_smooth(method = "lm") + 
+  annotate("text", x = 60, y = 2.5, label = paste("r^2 =", summary(pm_lm)$r.squared)) + 
+  ggtitle("六個直轄市當中\npm10.年平均濃度與女性人口肺炎死亡率關係") + 
+  scale_x_continuous(name = "pm10.年平均濃度 (mg/cm^3)", limits = c(0, 80)) + 
+  scale_y_continuous(name = "女性人口肺炎死亡率 (人/每10萬人)", limits = c(0, 80)) + 
+  scale_color_discrete(name = "直轄市")
+# ggsave("pm10_ratio_f_death1.png")
+
+pm_lm  <- lm(ratio_per_100000 ~ average_pm10., data = pm_filtered_death2_6_cities)
+ggplot(pm_filtered_death2_6_cities, aes(x = average_pm10., y = ratio_per_100000)) + 
+  geom_point(aes(col = factor(county, levels = pm_order_6_cities))) + 
+  geom_smooth(method = "lm") + 
+  annotate("text", x = 60, y = 2.5, label = paste("r^2 =", summary(pm_lm)$r.squared)) + 
+  ggtitle("六個直轄市當中\npm10.年平均濃度與所有人口慢性下呼吸道疾病死亡率關係") + 
+  scale_x_continuous(name = "pm10.年平均濃度 (mg/cm^3)", limits = c(0, 80)) + 
+  scale_y_continuous(name = "所有人口慢性下呼吸道疾病死亡率 (人/每10萬人)", limits = c(0, 80)) + 
+  scale_color_discrete(name = "直轄市")
+# ggsave("pm10_ratio_all_death2.png")
+
+pm_lm  <- lm(M_ratio_per_100000 ~ average_pm10., data = pm_filtered_death2_6_cities)
+ggplot(pm_filtered_death2_6_cities, aes(x = average_pm10., y = M_ratio_per_100000)) + 
+  geom_point(aes(col = factor(county, levels = pm_order_6_cities))) + 
+  geom_smooth(method = "lm") + 
+  annotate("text", x = 60, y = 2.5, label = paste("r^2 =", summary(pm_lm)$r.squared)) + 
+  ggtitle("六個直轄市當中\npm10.年平均濃度與男性人口慢性下呼吸道疾病死亡率關係") + 
+  scale_x_continuous(name = "pm10.年平均濃度 (mg/cm^3)", limits = c(0, 80)) + 
+  scale_y_continuous(name = "男性人口慢性下呼吸道疾病死亡率 (人/每10萬人)", limits = c(0, 80)) + 
+  scale_color_discrete(name = "直轄市")
+# ggsave("pm10_ratio_m_death2.png")
+
+pm_lm  <- lm(F_ratio_per_100000 ~ average_pm10., data = pm_filtered_death2_6_cities)
+ggplot(pm_filtered_death2_6_cities, aes(x = average_pm10., y = F_ratio_per_100000)) + 
+  geom_point(aes(col = factor(county, levels = pm_order_6_cities))) + 
+  geom_smooth(method = "lm") + 
+  annotate("text", x = 60, y = 2.5, label = paste("r^2 =", summary(pm_lm)$r.squared)) + 
+  ggtitle("六個直轄市當中\npm10.年平均濃度與女性人口慢性下呼吸道疾病死亡率關係") + 
+  scale_x_continuous(name = "pm10.年平均濃度 (mg/cm^3)", limits = c(0, 80)) + 
+  scale_y_continuous(name = "女性人口慢性下呼吸道疾病死亡率 (人/每10萬人)", limits = c(0, 80)) + 
+  scale_color_discrete(name = "直轄市")
+# ggsave("pm10_ratio_f_death2.png")
+```
+
+pm_2.5 to death ratio (filtered) (both data)
+```{r}
+pm_lm  <- lm(ratio_per_100000 ~ average_pm2.5, data = pm_filtered_death_6_cities)
+ggplot(pm_filtered_death_6_cities, aes(x = average_pm2.5, y = ratio_per_100000)) + 
+  geom_point(aes(col = factor(county, levels = pm_order_6_cities))) + 
+  geom_smooth(method = "lm") + 
+  annotate("text", x = 30, y = 2.5, label = paste("r^2 =", summary(pm_lm)$r.squared)) + 
+  ggtitle("六個直轄市當中\npm2.5年平均濃度與所有人口肺炎死亡率關係") + 
+  scale_x_continuous(name = "pm2.5年平均濃度 (mg/cm^3)", limits = c(0, 40)) + 
+  scale_y_continuous(name = "所有人口肺炎死亡率 (人/每10萬人)", limits = c(0, 80)) + 
+  scale_color_discrete(name = "直轄市")
+# ggsave("pm2.5_ratio_all_death1.png")
+
+pm_lm  <- lm(M_ratio_per_100000 ~ average_pm2.5, data = pm_filtered_death_6_cities)
+ggplot(pm_filtered_death_6_cities, aes(x = average_pm2.5, y = M_ratio_per_100000)) + 
+  geom_point(aes(col = factor(county, levels = pm_order_6_cities))) + 
+  geom_smooth(method = "lm") + 
+  annotate("text", x = 30, y = 2.5, label = paste("r^2 =", summary(pm_lm)$r.squared)) + 
+  ggtitle("六個直轄市當中\npm2.5年平均濃度與男性人口肺炎死亡率關係") + 
+  scale_x_continuous(name = "pm2.5年平均濃度 (mg/cm^3)", limits = c(0, 40)) + 
+  scale_y_continuous(name = "男性人口肺炎死亡率 (人/每10萬人)", limits = c(0, 80)) + 
+  scale_color_discrete(name = "直轄市")
+# ggsave("pm2.5_ratio_m_death1.png")
+
+pm_lm  <- lm(F_ratio_per_100000 ~ average_pm2.5, data = pm_filtered_death_6_cities)
+ggplot(pm_filtered_death_6_cities, aes(x = average_pm2.5, y = F_ratio_per_100000)) + 
+  geom_point(aes(col = factor(county, levels = pm_order_6_cities))) + 
+  geom_smooth(method = "lm") + 
+  annotate("text", x = 30, y = 2.5, label = paste("r^2 =", summary(pm_lm)$r.squared)) + 
+  ggtitle("六個直轄市當中\npm2.5年平均濃度與女性人口肺炎死亡率關係") + 
+  scale_x_continuous(name = "pm2.5年平均濃度 (mg/cm^3)", limits = c(0, 40)) + 
+  scale_y_continuous(name = "女性人口肺炎死亡率 (人/每10萬人)", limits = c(0, 80)) + 
+  scale_color_discrete(name = "直轄市")
+# ggsave("pm2.5_ratio_f_death1.png")
+
+pm_lm  <- lm(ratio_per_100000 ~ average_pm2.5, data = pm_filtered_death2_6_cities)
+ggplot(pm_filtered_death2_6_cities, aes(x = average_pm2.5, y = ratio_per_100000)) + 
+  geom_point(aes(col = factor(county, levels = pm_order_6_cities))) + 
+  geom_smooth(method = "lm") + 
+  annotate("text", x = 30, y = 2.5, label = paste("r^2 =", summary(pm_lm)$r.squared)) + 
+  ggtitle("六個直轄市當中\npm2.5年平均濃度與所有人口慢性下呼吸道疾病死亡率關係") + 
+  scale_x_continuous(name = "pm2.5年平均濃度 (mg/cm^3)", limits = c(0, 40)) + 
+  scale_y_continuous(name = "所有人口慢性下呼吸道疾病死亡率 (人/每10萬人)", limits = c(0, 80)) + 
+  scale_color_discrete(name = "直轄市")
+# ggsave("pm2.5_ratio_all_death2.png")
+
+pm_lm  <- lm(M_ratio_per_100000 ~ average_pm2.5, data = pm_filtered_death2_6_cities)
+ggplot(pm_filtered_death2_6_cities, aes(x = average_pm2.5, y = M_ratio_per_100000)) + 
+  geom_point(aes(col = factor(county, levels = pm_order_6_cities))) + 
+  geom_smooth(method = "lm") + 
+  annotate("text", x = 30, y = 2.5, label = paste("r^2 =", summary(pm_lm)$r.squared)) + 
+  ggtitle("六個直轄市當中\npm2.5年平均濃度與男性人口慢性下呼吸道疾病死亡率關係") + 
+  scale_x_continuous(name = "pm2.5年平均濃度 (mg/cm^3)", limits = c(0, 40)) + 
+  scale_y_continuous(name = "男性人口慢性下呼吸道疾病死亡率 (人/每10萬人)", limits = c(0, 80)) + 
+  scale_color_discrete(name = "直轄市")
+# ggsave("pm2.5_ratio_m_death2.png")
+
+pm_lm  <- lm(F_ratio_per_100000 ~ average_pm2.5, data = pm_filtered_death2_6_cities)
+ggplot(pm_filtered_death2_6_cities, aes(x = average_pm2.5, y = F_ratio_per_100000)) + 
+  geom_point(aes(col = factor(county, levels = pm_order_6_cities))) + 
+  geom_smooth(method = "lm") + 
+  annotate("text", x = 30, y = 2.5, label = paste("r^2 =", summary(pm_lm)$r.squared)) + 
+  ggtitle("六個直轄市當中\npm2.5年平均濃度與女性人口慢性下呼吸道疾病死亡率關係") + 
+  scale_x_continuous(name = "pm2.5年平均濃度 (mg/cm^3)", limits = c(0, 40)) + 
+  scale_y_continuous(name = "女性人口慢性下呼吸道疾病死亡率 (人/每10萬人)", limits = c(0, 80)) + 
+  scale_color_discrete(name = "直轄市")
+# ggsave("pm2.5_ratio_f_death2.png")
+```
+
+## r^2
+r^2 of cols' trend line
+```{r}
+library(alr3)
+
+# df
+print("df")
+pm_lm  <- lm(ratio_per_100000 ~ average_pm2.5, data = pm_death_total)
+summary(pm_lm)$r.squared
+
+pm_lm  <- lm(M_ratio_per_100000 ~ average_pm2.5, data = pm_death_total)
+summary(pm_lm)$r.squared
+
+pm_lm  <- lm(F_ratio_per_100000 ~ average_pm2.5, data = pm_death_total)
+summary(pm_lm)$r.squared
+
+pm_lm  <- lm(ratio_per_100000 ~ average_pm10., data = pm_death_total)
+summary(pm_lm)$r.squared
+
+pm_lm  <- lm(M_ratio_per_100000 ~ average_pm10., data = pm_death_total)
+summary(pm_lm)$r.squared
+
+pm_lm  <- lm(F_ratio_per_100000 ~ average_pm10., data = pm_death_total)
+summary(pm_lm)$r.squared
+
+pm_lm  <- lm(population ~ average_pm2.5, data = pm_death_total)
+summary(pm_lm)$r.squared
+
+pm_lm  <- lm(population ~ average_pm10., data = pm_death_total)
+summary(pm_lm)$r.squared
+
+pm_lm  <- lm(population ~ ratio_per_100000, data = pm_death_total)
+summary(pm_lm)$r.squared
+
+pm_lm  <- lm(population ~ M_ratio_per_100000, data = pm_death_total)
+summary(pm_lm)$r.squared
+
+pm_lm  <- lm(population ~ F_ratio_per_100000, data = pm_death_total)
+summary(pm_lm)$r.squared
+
+# df2
+print("df2")
+pm_lm  <- lm(ratio_per_100000 ~ average_pm2.5, data = pm_death2_total)
+summary(pm_lm)$r.squared
+
+pm_lm  <- lm(M_ratio_per_100000 ~ average_pm2.5, data = pm_death2_total)
+summary(pm_lm)$r.squared
+
+pm_lm  <- lm(F_ratio_per_100000 ~ average_pm2.5, data = pm_death2_total)
+summary(pm_lm)$r.squared
+
+pm_lm  <- lm(ratio_per_100000 ~ average_pm10., data = pm_death2_total)
+summary(pm_lm)$r.squared
+
+pm_lm  <- lm(M_ratio_per_100000 ~ average_pm10., data = pm_death2_total)
+summary(pm_lm)$r.squared
+
+pm_lm  <- lm(F_ratio_per_100000 ~ average_pm10., data = pm_death2_total)
+summary(pm_lm)$r.squared
+
+pm_lm  <- lm(population ~ average_pm2.5, data = pm_death2_total)
+summary(pm_lm)$r.squared
+
+pm_lm  <- lm(population ~ average_pm10., data = pm_death2_total)
+summary(pm_lm)$r.squared
+
+pm_lm  <- lm(population ~ ratio_per_100000, data = pm_death2_total)
+summary(pm_lm)$r.squared
+
+pm_lm  <- lm(population ~ M_ratio_per_100000, data = pm_death2_total)
+summary(pm_lm)$r.squared
+
+pm_lm  <- lm(population ~ F_ratio_per_100000, data = pm_death2_total)
+summary(pm_lm)$r.squared
+```
+
+r^2 of cols' trend line (filtered)
+```{r}
+# df
+("df")
+pm_lm  <- lm(ratio_per_100000 ~ average_pm2.5, data = pm_filtered_death_6_cities)
+summary(pm_lm)$r.squared
+
+pm_lm  <- lm(M_ratio_per_100000 ~ average_pm2.5, data = pm_filtered_death_6_cities)
+summary(pm_lm)$r.squared
+
+pm_lm  <- lm(F_ratio_per_100000 ~ average_pm2.5, data = pm_filtered_death_6_cities)
+summary(pm_lm)$r.squared
+
+pm_lm  <- lm(ratio_per_100000 ~ average_pm10., data = pm_filtered_death_6_cities)
+summary(pm_lm)$r.squared
+
+pm_lm  <- lm(M_ratio_per_100000 ~ average_pm10., data = pm_filtered_death_6_cities)
+summary(pm_lm)$r.squared
+
+pm_lm  <- lm(F_ratio_per_100000 ~ average_pm10., data = pm_filtered_death_6_cities)
+summary(pm_lm)$r.squared
+
+pm_lm  <- lm(population ~ average_pm2.5, data = pm_filtered_death_6_cities)
+summary(pm_lm)$r.squared
+
+pm_lm  <- lm(population ~ average_pm10., data = pm_filtered_death_6_cities)
+summary(pm_lm)$r.squared
+
+pm_lm  <- lm(population ~ ratio_per_100000, data = pm_filtered_death_6_cities)
+summary(pm_lm)$r.squared
+
+pm_lm  <- lm(population ~ M_ratio_per_100000, data = pm_filtered_death_6_cities)
+summary(pm_lm)$r.squared
+
+pm_lm  <- lm(population ~ F_ratio_per_100000, data = pm_filtered_death_6_cities)
+summary(pm_lm)$r.squared
+
+# df2
+print("df2")
+pm_lm  <- lm(ratio_per_100000 ~ average_pm2.5, data = pm_filtered_death2_6_cities)
+summary(pm_lm)$r.squared
+
+pm_lm  <- lm(M_ratio_per_100000 ~ average_pm2.5, data = pm_filtered_death2_6_cities)
+summary(pm_lm)$r.squared
+
+pm_lm  <- lm(F_ratio_per_100000 ~ average_pm2.5, data = pm_filtered_death2_6_cities)
+summary(pm_lm)$r.squared
+
+pm_lm  <- lm(ratio_per_100000 ~ average_pm10., data = pm_filtered_death2_6_cities)
+summary(pm_lm)$r.squared
+
+pm_lm  <- lm(M_ratio_per_100000 ~ average_pm10., data = pm_filtered_death2_6_cities)
+summary(pm_lm)$r.squared
+
+pm_lm  <- lm(F_ratio_per_100000 ~ average_pm10., data = pm_filtered_death2_6_cities)
+summary(pm_lm)$r.squared
+
+pm_lm  <- lm(population ~ average_pm2.5, data = pm_filtered_death2_6_cities)
+summary(pm_lm)$r.squared
+
+pm_lm  <- lm(population ~ average_pm10., data = pm_filtered_death2_6_cities)
+summary(pm_lm)$r.squared
+
+pm_lm  <- lm(population ~ ratio_per_100000, data = pm_filtered_death2_6_cities)
+summary(pm_lm)$r.squared
+
+pm_lm  <- lm(population ~ M_ratio_per_100000, data = pm_filtered_death2_6_cities)
+summary(pm_lm)$r.squared
+
+pm_lm  <- lm(population ~ F_ratio_per_100000, data = pm_filtered_death2_6_cities)
+summary(pm_lm)$r.squared
 ```
 
 rm
 ```{r}
-rm(pm_death_list, pm_death2_list, pm_death_101, pm_death_102, pm_death_103, pm_death_104, pm_death_105, pm_death_106, pm_death2_101, pm_death2_102, pm_death2_103, pm_death2_104, pm_death2_105, pm_death2_106, pm_regionCode_list, pm_regionCode_county_df, pm_population)
+rm(pm_death_list, pm_death2_list, pm_death_101, pm_death_102, pm_death_103, pm_death_104, pm_death_105, pm_death_106, pm_death2_101, pm_death2_102, pm_death2_103, pm_death2_104, pm_death2_105, pm_death2_106, pm_regionCode_list, pm_regionCode_county_df, pm_population, pm_pmdata_df, pm_lm, pm_filtered_death_6_cities, pm_filtered_death2_6_cities, pm_death_total, pm_death2_total, pm_order_6_cities, pm_importWorksheets)
+```
+
+clear console
+```{r}
+cat("\014")
 ```
 
 
